@@ -4,6 +4,7 @@ import (
 	"music-library/internal/handlers"
 
 	"github.com/gorilla/mux"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 func NewRouter(handler *handlers.SongHandler) *mux.Router {
@@ -14,6 +15,7 @@ func NewRouter(handler *handlers.SongHandler) *mux.Router {
 	r.HandleFunc("/song", handler.AddSongHandler).Methods("POST")
 	r.HandleFunc("/song/{id}", handler.UpdateSongHandler).Methods("PUT")
 	r.HandleFunc("/song/{id}", handler.DeleteSongHandler).Methods("DELETE")
+	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 
 	return r
 }
