@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"music-library/internal/models"
 	"net/http"
 )
@@ -17,10 +18,14 @@ type SongService interface {
 
 type SongHandler struct {
 	service SongService
+	logger  *slog.Logger
 }
 
-func NewSongHandler(service SongService) *SongHandler {
-	return &SongHandler{service: service}
+func NewSongHandler(service SongService, logger *slog.Logger) *SongHandler {
+	return &SongHandler{
+		service: service,
+		logger:  logger,
+	}
 }
 
 func (h *SongHandler) AddSongHandler(w http.ResponseWriter, r *http.Request) {

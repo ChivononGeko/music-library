@@ -1,7 +1,8 @@
 package config
 
 import (
-	"log"
+	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -17,49 +18,47 @@ type Config struct {
 	ExternalAPI string
 }
 
-func LoadConfig() *Config {
-	// Загружаем .env файл
+func LoadConfig() (*Config, error) {
 	if err := godotenv.Load(); err != nil {
-		log.Fatal("Error loading .env file, ensure it exists and contains the required values")
+		slog.Error("Error loading .env file, ensure it exists and contains the required values")
+		return nil, err
 	}
 
-	// Получаем переменные окружения
 	dbHost := os.Getenv("DB_HOST")
 	if dbHost == "" {
-		log.Fatal("DB_HOST is not set in environment variables")
+		return nil, fmt.Errorf("the DB_HOST value is not set in the environment variables")
 	}
 
 	dbPort := os.Getenv("DB_PORT")
 	if dbPort == "" {
-		log.Fatal("DB_PORT is not set in environment variables")
+		return nil, fmt.Errorf("the DB_PORT value is not set in the environment variables")
 	}
 
 	dbUser := os.Getenv("DB_USER")
 	if dbUser == "" {
-		log.Fatal("DB_USER is not set in environment variables")
+		return nil, fmt.Errorf("the DB_USER value is not set in the environment variables")
 	}
 
 	dbPassword := os.Getenv("DB_PASSWORD")
 	if dbPassword == "" {
-		log.Fatal("DB_PASSWORD is not set in environment variables")
+		return nil, fmt.Errorf("the DB_PASSWORD value is not set in the environment variables")
 	}
 
 	dbName := os.Getenv("DB_NAME")
 	if dbName == "" {
-		log.Fatal("DB_NAME is not set in environment variables")
+		return nil, fmt.Errorf("the DB_NAME value is not set in the environment variables")
 	}
 
 	apiPort := os.Getenv("API_PORT")
 	if apiPort == "" {
-		log.Fatal("API_PORT is not set in environment variables")
+		return nil, fmt.Errorf("the API_PORT value is not set in the environment variables")
 	}
 
 	externalAPI := os.Getenv("EXTERNAL_API_URL")
 	if externalAPI == "" {
-		log.Fatal("EXTERNAL_API_URL is not set in environment variables")
+		return nil, fmt.Errorf("the EXTERNAL_API_URL value is not set in the environment variables")
 	}
 
-	// Возвращаем конфигурацию
 	return &Config{
 		DBHost:      dbHost,
 		DBPort:      dbPort,
@@ -68,5 +67,5 @@ func LoadConfig() *Config {
 		DBName:      dbName,
 		APIPort:     apiPort,
 		ExternalAPI: externalAPI,
-	}
+	}, nil
 }

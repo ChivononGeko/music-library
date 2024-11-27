@@ -1,7 +1,7 @@
 package main
 
 import (
-	"log"
+	"log/slog"
 	"music-library/internal/config"
 	"music-library/internal/db"
 	"music-library/internal/handlers"
@@ -9,25 +9,37 @@ import (
 	"music-library/internal/router"
 	"music-library/internal/services"
 	"net/http"
-
-	_ "github.com/lib/pq"
+	"os"
 )
 
 func main() {
-	cfg := config.LoadConfig()
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	slog.SetDefault(logger)
 
-	db, err := db.InitDB(cfg.DBHost, cfg.DBPort, cfg.DBUser, cfg.DBPassword, cfg.DBName)
+	cfg, err := config.LoadConfig()
 	if err != nil {
-		log.Fatal("Database connection failed:", err)
+		slog.Error("Configuration loading error", "error", err)
+		return
 	}
-	defer db.Close()
+	slog.Info("Configuration loaded successfully")
 
-	repo := repository.NewSongRepository(db)
-	service := services.NewSongService(repo, cfg.ExternalAPI)
-	handler := handlers.NewSongHandler(service)
+	database, err := db.InitDB(cfg.DBHost, cfg.DBPort, cfg.DBUser, cfg.DBPassword, cfg.DBName)
+	if err != nil {
+		slog.Error("Database connection failed", "host", cfg.DBHost, "port", cfg.DBPort, "error", err)
+		return
+	}
+	defer database.Close()
+	slog.Info("Database connection successfully")
+
+	repo := repository.NewSongRepository(database, logger)
+	service := services.NewSongService(repo, logger)
+	handler := handlers.NewSongHandler(service, logger)
 
 	r := router.NewRouter(handler)
 
-	log.Printf("Starting server on port %s...", cfg.APIPort)
-	log.Fatal(http.ListenAndServe(":"+cfg.APIPort, r))
+	slog.Info("Starting server", "port", cfg.APIPort)
+	if err := http.ListenAndServe(":"+cfg.APIPort, r); err != nil {
+		slog.Error("Server failed to start", "error", err)
+		return
+	}
 }
