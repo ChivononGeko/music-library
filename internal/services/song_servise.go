@@ -52,15 +52,12 @@ func (s *SongService) AddSong(group, song string) error {
 		return fmt.Errorf("failed to unmarshal song data: %v", err)
 	}
 
-	fullSong := models.Song{
-		GroupName:   group,
-		SongName:    song,
-		ReleaseDate: songDetail.ReleaseDate,
-		Text:        songDetail.Text,
-		Link:        songDetail.Link,
+	fullSong, err := models.NewSong(group, song, songDetail.Text, songDetail.Link, songDetail.ReleaseDate)
+	if err != nil {
+		return fmt.Errorf("error creating song: %v", err)
 	}
 
-	return s.repository.AddSongRepository(fullSong)
+	return s.repository.AddSongRepository(*fullSong)
 }
 
 func (s *SongService) GetSong(id string) (*models.Song, error) {
@@ -83,7 +80,6 @@ func (s *SongService) UpdateSong(id string, updateSong *models.Song) error {
 	if err := s.repository.UpdateSongRepository(id, updateSong); err != nil {
 		return fmt.Errorf("failed to update song: %v", err)
 	}
-
 	return nil
 }
 
