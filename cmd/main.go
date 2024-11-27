@@ -1,12 +1,12 @@
 package main
 
 import (
-	"database/sql"
-	"fmt"
 	"log"
 	"music-library/internal/config"
+	"music-library/internal/db"
 	"music-library/internal/handlers"
 	"music-library/internal/repository"
+	"music-library/internal/router"
 	"music-library/internal/services"
 	"net/http"
 
@@ -15,11 +15,10 @@ import (
 
 func main() {
 	cfg := config.LoadConfig()
-	dataName := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", cfg.DBHost, cfg.DBPort, cfg.DBUser, cfg.DBPassword, cfg.DBName)
 
-	db, err := sql.Open("postgres", dataName)
+	db, err := db.InitDB(cfg.DBHost, cfg.DBPort, cfg.DBUser, cfg.DBPassword, cfg.DBName)
 	if err != nil {
-		log.Fatal("Failed to connect to DB:", err)
+		log.Fatal("Database connection failed:", err)
 	}
 	defer db.Close()
 
@@ -27,9 +26,8 @@ func main() {
 	service := services.NewSongService(repo, cfg.ExternalAPI)
 	handler := handlers.NewSongHandler(service)
 
-	http.HandleFunc("/songs", handler.AddSongHandler)
-	//Add more handler by mux
+	r := router.NewRouter(handler)
 
 	log.Printf("Starting server on port %s...", cfg.APIPort)
-	log.Fatal(http.ListenAndServe(":"+cfg.APIPort, nil))
+	log.Fatal(http.ListenAndServe(":"+cfg.APIPort, r))
 }
