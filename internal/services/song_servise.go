@@ -6,11 +6,12 @@ import (
 	"io"
 	"music-library/internal/models"
 	"net/http"
+	"net/url"
 )
 
 type SongRepository interface {
 	DeleteSongRepository(id string) error
-	UpdateSongRepository(id string, song models.Song) error
+	UpdateSongRepository(id string, song *models.Song) error
 	GetAllSongsRepository() ([]*models.Song, error)
 	GetSongRepository(id string) (*models.Song, error)
 	AddSongRepository(song models.Song) error
@@ -26,7 +27,10 @@ func NewSongService(repository SongRepository, APIURL string) *SongService {
 }
 
 func (s *SongService) AddSong(group, song string) error {
-	url := fmt.Sprintf("%s?group=%s&song=%s", s.APIURL, group, song)
+	groupEncoded := url.QueryEscape(group)
+	songEncoded := url.QueryEscape(song)
+
+	url := fmt.Sprintf("%s?group=%s&song=%s", s.APIURL, groupEncoded, songEncoded)
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -62,7 +66,7 @@ func (s *SongService) AddSong(group, song string) error {
 func (s *SongService) GetSong(id string) (*models.Song, error) {
 	song, err := s.repository.GetSongRepository(id)
 	if err != nil {
-		return nil, fmt.Errorf("service error: %w", err)
+		return nil, fmt.Errorf("error getting song from repository: %w", err)
 	}
 	return song, nil
 }
@@ -70,18 +74,22 @@ func (s *SongService) GetSong(id string) (*models.Song, error) {
 func (s *SongService) GetAllSongs() ([]*models.Song, error) {
 	songs, err := s.repository.GetAllSongsRepository()
 	if err != nil {
-		return nil, fmt.Errorf("service error: %w", err)
+		return nil, fmt.Errorf("error getting songs from repository: %w", err)
 	}
 	return songs, nil
 }
 
-func (s *SongService) UpdateSong(id string, song, group string) error {
+func (s *SongService) UpdateSong(id string, updateSong *models.Song) error {
+	if err := s.repository.UpdateSongRepository(id, updateSong); err != nil {
+		return fmt.Errorf("failed to update song: %v", err)
+	}
+
 	return nil
 }
 
 func (s *SongService) DeleteSong(id string) error {
 	if err := s.repository.DeleteSongRepository(id); err != nil {
-		return fmt.Errorf("service error: %w", err)
+		return fmt.Errorf("failed to delete song: %v", err)
 	}
 	return nil
 }
