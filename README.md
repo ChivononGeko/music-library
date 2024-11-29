@@ -61,13 +61,13 @@ Swagger documentation is generated for the implemented API.
 ```bash
 music-library/
 ├── cmd/
-| ├── doc/
-| │   ├── docs.go
-| │   ├── swagger.json
-| │   └── swagger.yaml
+│ ├── doc/
+│ │   ├── docs.go
+│ │   ├── swagger.json
+│ │   └── swagger.yaml
 │ └── main.go
 ├── internal/
-| ├── config/
+│ ├── config/
 │ │   └── config.go
 │ ├── db/
 │ │   └── db.go
