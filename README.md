@@ -29,7 +29,7 @@ First clone the repository and compile the project:
 ```bash
 git clone <repository_url>
 cd ./music-library
-go build -o ./music-library
+go build -o music-library ./cmd
 ```
 
 ## Launch
