@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"music-library/internal/models"
 	"net/http"
+
+	"github.com/gorilla/mux"
 )
 
 // SongService interface for interacting with the song service.
@@ -78,7 +80,8 @@ func (h *SongHandler) AddSongHandler(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {string} string "Server error"
 // @Router /songs [get]
 func (h *SongHandler) GetSongHandler(w http.ResponseWriter, r *http.Request) {
-	id := r.URL.Query().Get("id")
+	vars := mux.Vars(r)
+	id := vars["id"]
 	h.logger.Info("Received GetSong request", "id", id)
 
 	song, err := h.service.GetSong(id)
@@ -126,7 +129,8 @@ func (h *SongHandler) GetAllSongsHandler(w http.ResponseWriter, r *http.Request)
 // @Failure 500 {string} string "Server error"
 // @Router /songs [put]
 func (h *SongHandler) UpdateSongHandler(w http.ResponseWriter, r *http.Request) {
-	id := r.URL.Query().Get("id")
+	vars := mux.Vars(r)
+	id := vars["id"]
 	h.logger.Info("Received UpdateSong request", "id", id)
 
 	var updateSong models.Song
@@ -158,7 +162,8 @@ func (h *SongHandler) UpdateSongHandler(w http.ResponseWriter, r *http.Request) 
 // @Failure 500 {string} string "Server error"
 // @Router /songs [delete]
 func (h *SongHandler) DeleteSongHandler(w http.ResponseWriter, r *http.Request) {
-	id := r.URL.Query().Get("id")
+	vars := mux.Vars(r)
+	id := vars["id"]
 	h.logger.Info("Received DeleteSong request", "id", id)
 
 	err := h.service.DeleteSong(id)

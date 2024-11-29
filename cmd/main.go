@@ -5,13 +5,13 @@ import (
 	"music-library/internal/config"
 	"music-library/internal/db"
 	"music-library/internal/handlers"
+	"music-library/internal/migrations"
 	"music-library/internal/repository"
 	"music-library/internal/router"
 	"music-library/internal/services"
 	"net/http"
 	"os"
 
-	"github.com/golang-migrate/migrate"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
@@ -40,7 +40,7 @@ func main() {
 	defer database.Close()
 	slog.Info("Database connection successfully")
 
-	err = runMigrations(cfg.DBHost, cfg.DBPort, cfg.DBUser, cfg.DBPassword, cfg.DBName)
+	err = migrations.ApplyMigrations(cfg.DBHost, cfg.DBPort, cfg.DBUser, cfg.DBPassword, cfg.DBName)
 	if err != nil {
 		slog.Error("Migrations failed", "error", err)
 		return
@@ -58,23 +58,4 @@ func main() {
 		slog.Error("Server failed to start", "error", err)
 		return
 	}
-}
-
-func runMigrations(host, port, user, password, dbname string) error {
-	connString := "postgres://" + user + ":" + password + "@" + host + ":" + port + "/" + dbname + "?sslmode=disable"
-
-	m, err := migrate.New(
-		"file://../migrations",
-		connString,
-	)
-	if err != nil {
-		return err
-	}
-
-	err = m.Up()
-	if err != nil && err != migrate.ErrNoChange {
-		return err
-	}
-
-	return nil
 }
