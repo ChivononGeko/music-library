@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -8,6 +9,9 @@ import (
 	"music-library/internal/models"
 	"net/http"
 	"net/url"
+	"time"
+
+	"github.com/redis/go-redis/v9"
 )
 
 type SongRepository interface {
@@ -21,12 +25,14 @@ type SongRepository interface {
 type SongService struct {
 	repository SongRepository
 	logger     *slog.Logger
+	redis      *redis.Client
 	APIURL     string
 }
 
-func NewSongService(repository SongRepository, logger *slog.Logger) *SongService {
+func NewSongService(repository SongRepository, logger *slog.Logger, redis *redis.Client) *SongService {
 	return &SongService{
 		repository: repository,
+		redis:      redis,
 		logger:     logger,
 	}
 }
@@ -78,12 +84,30 @@ func (s *SongService) AddSong(group, song string) error {
 }
 
 func (s *SongService) GetSong(id string) (*models.Song, error) {
+	ctx := context.Background()
+
+	cacheKey := fmt.Sprintf("song:%s", id)
+	cachedData, err := s.redis.Get(ctx, cacheKey).Result()
+	if err == nil {
+		var song *models.Song
+		if json.Unmarshal([]byte(cachedData), &song) == nil {
+			s.logger.Info("Cache hit for song", "id", id)
+			return song, nil
+		}
+	}
+
+	s.logger.Info("Cache miss for song", "id", id)
 	s.logger.Info("Fetching song from repository", "id", id)
 
 	song, err := s.repository.GetSongRepository(id)
 	if err != nil {
 		s.logger.Error("Failed to get song from repository", "id", id, "error", err)
 		return nil, fmt.Errorf("error getting song from repository: %w", err)
+	}
+
+	data, _ := json.Marshal(song)
+	if err := s.redis.Set(ctx, cacheKey, data, 10*time.Minute).Err(); err != nil {
+		s.logger.Error("Failed to save data to Redis", "error", err)
 	}
 
 	s.logger.Info("Successfully fetched song from repository", "song", song)
@@ -106,6 +130,10 @@ func (s *SongService) GetAllSongs() ([]*models.Song, error) {
 func (s *SongService) UpdateSong(id string, updateSong *models.Song) error {
 	s.logger.Info("Updating song in repository", "id", id, "song", updateSong)
 
+	ctx := context.Background()
+	cacheKey := fmt.Sprintf("song:%s", id)
+	s.redis.Del(ctx, cacheKey)
+
 	fullSong, err := models.NewSong(updateSong.GroupName, updateSong.SongName, updateSong.Text, updateSong.Link, updateSong.ReleaseDate)
 	if err != nil {
 		s.logger.Error("Error creating song model", "error", err)
@@ -116,6 +144,9 @@ func (s *SongService) UpdateSong(id string, updateSong *models.Song) error {
 		s.logger.Error("Failed to update song in repository", "id", id, "error", err)
 		return fmt.Errorf("failed to update song: %v", err)
 	}
+
+	data, _ := json.Marshal(fullSong)
+	s.redis.Set(ctx, cacheKey, data, 10*time.Minute)
 
 	s.logger.Info("Successfully updated song", "id", id)
 	return nil
@@ -128,6 +159,10 @@ func (s *SongService) DeleteSong(id string) error {
 		s.logger.Error("Failed to delete song from repository", "id", id, "error", err)
 		return fmt.Errorf("failed to delete song: %v", err)
 	}
+
+	ctx := context.Background()
+	cacheKey := fmt.Sprintf("song:%s", id)
+	s.redis.Del(ctx, cacheKey)
 
 	s.logger.Info("Successfully deleted song", "id", id)
 	return nil

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	_ "github.com/lib/pq"
+	"github.com/redis/go-redis/v9"
 )
 
 func InitDB(dbHost, dbPort, dbUser, dbPassword, dbName string) (*sql.DB, error) {
@@ -20,4 +21,10 @@ func InitDB(dbHost, dbPort, dbUser, dbPassword, dbName string) (*sql.DB, error) 
 	}
 
 	return db, nil
+}
+
+func NewRedisClient(dbHost, redisPort string) *redis.Client {
+	return redis.NewClient(&redis.Options{
+		Addr: "0.0.0.0:" + redisPort,
+	})
 }

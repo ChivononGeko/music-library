@@ -47,8 +47,11 @@ func main() {
 	}
 	slog.Info("Migrations executed successfully")
 
+	redisClient := db.NewRedisClient(cfg.DBHost, cfg.RedisPort)
+	defer redisClient.Close()
+
 	repo := repository.NewSongRepository(database, logger)
-	service := services.NewSongService(repo, logger)
+	service := services.NewSongService(repo, logger, redisClient)
 	handler := handlers.NewSongHandler(service, logger)
 
 	r := router.NewRouter(handler)
