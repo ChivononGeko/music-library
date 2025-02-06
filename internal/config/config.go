@@ -16,7 +16,6 @@ type Config struct {
 	DBName      string
 	APIPort     string
 	ExternalAPI string
-	RedisPort   string
 }
 
 func LoadConfig() (*Config, error) {
@@ -41,9 +40,9 @@ func LoadConfig() (*Config, error) {
 	}
 
 	dbPassword := os.Getenv("DB_PASSWORD")
-	if dbPassword == "" {
-		return nil, fmt.Errorf("the DB_PASSWORD value is not set in the environment variables")
-	}
+	// if dbPassword == "" {
+	// 	return nil, fmt.Errorf("the DB_PASSWORD value is not set in the environment variables")
+	// }
 
 	dbName := os.Getenv("DB_NAME")
 	if dbName == "" {
@@ -56,14 +55,9 @@ func LoadConfig() (*Config, error) {
 	}
 
 	externalAPI := os.Getenv("EXTERNAL_API_URL")
-	if externalAPI == "" {
-		return nil, fmt.Errorf("the EXTERNAL_API_URL value is not set in the environment variables")
-	}
-
-	redisPort := os.Getenv("REDIS_PORT")
-	if redisPort == "" {
-		return nil, fmt.Errorf("the REDIS_PORT value is not set in the environment variables")
-	}
+	// if externalAPI == "" {
+	// 	return nil, fmt.Errorf("the EXTERNAL_API_URL value is not set in the environment variables")
+	// }
 
 	return &Config{
 		DBHost:      dbHost,
@@ -73,6 +67,5 @@ func LoadConfig() (*Config, error) {
 		DBName:      dbName,
 		APIPort:     apiPort,
 		ExternalAPI: externalAPI,
-		RedisPort:   redisPort,
 	}, nil
 }

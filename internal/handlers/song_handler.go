@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"music-library/internal/models"
 	"net/http"
+	"strconv"
 
 	"github.com/gorilla/mux"
 )
@@ -17,19 +18,19 @@ type SongService interface {
 	GetAllSongs() ([]*models.Song, error)
 	GetSong(id string) (*models.Song, error)
 	DeleteSong(id string) error
+	GetSongPaginated(filter map[string]string, page, pageSize int) ([]*models.Song, error)
+	GetSongTextPaginated(id string, page, pageSize int) ([]string, error)
 }
 
 // SongHandler a handler for working with songs.
 type SongHandler struct {
 	service SongService
-	logger  *slog.Logger
 }
 
 // NewSongHandler creates a new song handler
-func NewSongHandler(service SongService, logger *slog.Logger) *SongHandler {
+func NewSongHandler(service SongService) *SongHandler {
 	return &SongHandler{
 		service: service,
-		logger:  logger,
 	}
 }
 
@@ -45,27 +46,32 @@ func NewSongHandler(service SongService, logger *slog.Logger) *SongHandler {
 // @Failure 500 {string} string "Server error"
 // @Router /songs [post]
 func (h *SongHandler) AddSongHandler(w http.ResponseWriter, r *http.Request) {
-	h.logger.Info("Received AddSong request")
 	var request struct {
 		Group string `json:"group"`
 		Song  string `json:"song"`
 	}
-	err := json.NewDecoder(r.Body).Decode(&request)
-	if err != nil {
-		h.logger.Error("Failed to decode AddSong request", "error", err)
-		sendError(w, "Invalid request body", http.StatusBadRequest)
+
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		slog.Error("Failed to decode AddSong request", "error", err)
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	h.logger.Info("Adding song", "group", request.Group, "song", request.Song)
-	err = h.service.AddSong(request.Group, request.Song)
-	if err != nil {
-		h.logger.Error("Failed to add song", "error", err.Error())
-		sendError(w, err.Error(), http.StatusInternalServerError)
+	if request.Group == "" || request.Song == "" {
+		slog.Error("Invalid Adding song request", "group", request.Group, "song", request.Song)
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	h.logger.Info("Song added successfully", "group", request.Group, "song", request.Song)
+	slog.Info("Adding song", "group", request.Group, "song", request.Song)
+
+	if err := h.service.AddSong(request.Group, request.Song); err != nil {
+		slog.Error("Failed to add song", "error", err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	slog.Info("Song added successfully", "group", request.Group, "song", request.Song)
 	w.WriteHeader(http.StatusCreated)
 }
 
@@ -82,16 +88,16 @@ func (h *SongHandler) AddSongHandler(w http.ResponseWriter, r *http.Request) {
 func (h *SongHandler) GetSongHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
-	h.logger.Info("Received GetSong request", "id", id)
+	slog.Info("Received GetSong request", "id", id)
 
 	song, err := h.service.GetSong(id)
 	if err != nil {
-		h.logger.Error("Failed to get song", "id", id, "error", err.Error())
-		sendError(w, fmt.Sprintf("Error: %s", err), http.StatusInternalServerError)
+		slog.Error("Failed to get song", "id", id, "error", err.Error())
+		http.Error(w, fmt.Sprintf("Error: %s", err), http.StatusInternalServerError)
 		return
 	}
 
-	h.logger.Info("Song retrieved successfully", "id", id)
+	slog.Info("Song retrieved successfully", "id", id)
 	sendSuccess(w, song, http.StatusOK)
 }
 
@@ -104,16 +110,16 @@ func (h *SongHandler) GetSongHandler(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {string} string "Server error"
 // @Router /songs/all [get]
 func (h *SongHandler) GetAllSongsHandler(w http.ResponseWriter, r *http.Request) {
-	h.logger.Info("Received GetAllSongs request")
+	slog.Info("Received GetAllSongs request")
 
 	songs, err := h.service.GetAllSongs()
 	if err != nil {
-		h.logger.Error("Failed to retrieve all songs", "error", err.Error())
-		sendError(w, fmt.Sprintf("Error: %s", err), http.StatusInternalServerError)
+		slog.Error("Failed to retrieve all songs", "error", err.Error())
+		http.Error(w, fmt.Sprintf("Error: %s", err), http.StatusInternalServerError)
 		return
 	}
 
-	h.logger.Info("All songs retrieved successfully", "count", len(songs))
+	slog.Info("All songs retrieved successfully", "count", len(songs))
 	sendSuccess(w, songs, http.StatusOK)
 }
 
@@ -131,25 +137,25 @@ func (h *SongHandler) GetAllSongsHandler(w http.ResponseWriter, r *http.Request)
 func (h *SongHandler) UpdateSongHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
-	h.logger.Info("Received UpdateSong request", "id", id)
+	slog.Info("Received UpdateSong request", "id", id)
 
 	var updateSong models.Song
 	err := json.NewDecoder(r.Body).Decode(&updateSong)
 	if err != nil {
-		h.logger.Error("Failed to decode UpdateSong request", "id", id, "error", err.Error())
-		sendError(w, "Invalid request body", http.StatusBadRequest)
+		slog.Error("Failed to decode UpdateSong request", "id", id, "error", err.Error())
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	h.logger.Info("Updating song", "id", id, "song", updateSong)
+	slog.Info("Updating song", "id", id, "song", updateSong)
 	err = h.service.UpdateSong(id, &updateSong)
 	if err != nil {
-		h.logger.Error("Failed to update song", "id", id, "error", err.Error())
-		sendError(w, fmt.Sprintf("Error: %s", err), http.StatusInternalServerError)
+		slog.Error("Failed to update song", "id", id, "error", err.Error())
+		http.Error(w, fmt.Sprintf("Error: %s", err), http.StatusInternalServerError)
 		return
 	}
 
-	h.logger.Info("Song updated successfully", "id", id)
+	slog.Info("Song updated successfully", "id", id)
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -164,15 +170,81 @@ func (h *SongHandler) UpdateSongHandler(w http.ResponseWriter, r *http.Request) 
 func (h *SongHandler) DeleteSongHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
-	h.logger.Info("Received DeleteSong request", "id", id)
+	slog.Info("Received DeleteSong request", "id", id)
 
 	err := h.service.DeleteSong(id)
 	if err != nil {
-		h.logger.Error("Failed to delete song", "id", id, "error", err.Error())
-		sendError(w, fmt.Sprintf("Error: %s", err), http.StatusInternalServerError)
+		slog.Error("Failed to delete song", "id", id, "error", err.Error())
+		http.Error(w, fmt.Sprintf("Error: %s", err), http.StatusInternalServerError)
 		return
 	}
 
-	h.logger.Info("Song deleted successfully", "id", id)
+	slog.Info("Song deleted successfully", "id", id)
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *SongHandler) GetSongPaginated(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	filter := map[string]string{}
+
+	// Читаем фильтры из query-параметров
+	if group := query.Get("group"); group != "" {
+		filter["group"] = group
+	}
+	if song := query.Get("song"); song != "" {
+		filter["song"] = song
+	}
+	if text := query.Get("text"); text != "" {
+		filter["text"] = text
+	}
+
+	page, _ := strconv.Atoi(query.Get("page"))
+	if page < 1 {
+		page = 1
+	}
+	pageSize, _ := strconv.Atoi(query.Get("pageSize"))
+	if pageSize < 1 {
+		pageSize = 10
+	}
+
+	slog.Info("Handling GetSongs request", "filter", filter, "page", page, "pageSize", pageSize)
+
+	songs, err := h.service.GetSongPaginated(filter, page, pageSize)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(songs)
+}
+
+func (h *SongHandler) GetSongTextPaginatedHandler(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	id := query.Get("id")
+
+	if id == "" {
+		http.Error(w, "Missing song ID", http.StatusBadRequest)
+		return
+	}
+
+	page, _ := strconv.Atoi(query.Get("page"))
+	if page < 1 {
+		page = 1
+	}
+	pageSize, _ := strconv.Atoi(query.Get("pageSize"))
+	if pageSize < 1 {
+		pageSize = 2
+	}
+
+	slog.Info("Handling GetSongTextPaginated request", "id", id, "page", page, "pageSize", pageSize)
+
+	verses, err := h.service.GetSongTextPaginated(id, page, pageSize)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(verses)
 }

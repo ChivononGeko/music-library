@@ -10,7 +10,6 @@ import (
 	"music-library/internal/router"
 	"music-library/internal/services"
 	"net/http"
-	"os"
 
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -22,9 +21,6 @@ import (
 // @host localhost:8080
 // @BasePath /api/v1
 func main() {
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	slog.SetDefault(logger)
-
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		slog.Error("Configuration loading error", "error", err)
@@ -47,12 +43,9 @@ func main() {
 	}
 	slog.Info("Migrations executed successfully")
 
-	redisClient := db.NewRedisClient(cfg.DBHost, cfg.RedisPort)
-	defer redisClient.Close()
-
-	repo := repository.NewSongRepository(database, logger)
-	service := services.NewSongService(repo, logger, redisClient)
-	handler := handlers.NewSongHandler(service, logger)
+	repo := repository.NewSongRepository(database)
+	service := services.NewSongService(repo)
+	handler := handlers.NewSongHandler(service)
 
 	r := router.NewRouter(handler)
 

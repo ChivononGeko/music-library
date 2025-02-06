@@ -15,6 +15,8 @@ func NewRouter(handler *handlers.SongHandler) *mux.Router {
 	r.HandleFunc("/song", handler.AddSongHandler).Methods("POST")
 	r.HandleFunc("/song/{id}", handler.UpdateSongHandler).Methods("PUT")
 	r.HandleFunc("/song/{id}", handler.DeleteSongHandler).Methods("DELETE")
+	r.HandleFunc("/songs", handler.GetSongPaginated)
+	r.HandleFunc("/song/lyrics", handler.GetSongTextPaginatedHandler)
 	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 
 	return r
